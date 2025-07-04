@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 # Third-party imports
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from .utils import get_chrome_options, get_chrome_service, is_running_in_docker # Import from utils
+from src.utils.utils import get_chrome_options, get_chrome_service, is_running_in_docker # Import from utils
 
 
 class ScrapingError(Exception):

@@ -11,7 +11,11 @@ from selenium.webdriver.chrome.service import Service
 
 def is_running_in_docker():
     # Check for a common Docker environment variable
-    return os.environ.get('RUNNING_IN_DOCKER', '').lower() in ('true', '1')
+    # Also check for GITHUB_ACTIONS, which is set by GitHub Actions and the 'act' tool.
+    # This makes the detection more robust for CI/CD environments.
+    in_docker = os.environ.get('RUNNING_IN_DOCKER', '').lower() in ('true', '1')
+    in_ci = os.environ.get('GITHUB_ACTIONS', '').lower() == 'true'
+    return in_docker or in_ci
 
 def get_chrome_options(headless_override=None):
     """
