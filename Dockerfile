@@ -9,12 +9,8 @@ RUN dnf install -y atk cups-libs gtk3 libXcomposite alsa-lib \
     libXcursor libXdamage libXext libXi libXrandr libXScrnSaver \
     libXtst pango at-spi2-atk libXt xorg-x11-server-Xvfb \
     xorg-x11-xauth dbus-glib dbus-glib-devel nss mesa-libgbm jq unzip
-
 COPY ./chrome-installer.sh ./chrome-installer.sh
-
-RUN chmod +x ./chrome-installer.sh
-RUN ./chrome-installer.sh
-RUN rm ./chrome-installer.sh
+RUN chmod +x ./chrome-installer.sh && ./chrome-installer.sh && rm ./chrome-installer.sh
 
 # This will install dependencies into the Python environment where Lambda can find it.
 COPY requirements.txt .
@@ -24,6 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV RUNNING_IN_DOCKER=true
 
 # Copy the src directory from the build context into the container at /var/task/src
+# COPY src/ ./src/
 COPY src/ ./src/
 
 # Command to run the application

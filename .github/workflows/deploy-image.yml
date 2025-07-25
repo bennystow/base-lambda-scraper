@@ -58,20 +58,15 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           # Dynamically set ECR_REPOSITORY_NAME based on the branch
-          ECR_REPOSITORY_NAME: ${{ github.ref == 'refs/heads/main' && 'production/base-image' || 'development/base-image' }}
-          IMAGE_ARTIFACT_NAME: "base-web-scraper" # The desired name for your image artifact
-          AWS_REGION: "eu-west-2" # Define AWS_REGION here if not globally set for the job
+          ECR_REPOSITORY: ${{ github.ref == 'refs/heads/main' && 'production/base-image' || 'development/base-image' }}
           IMAGE_TAG: ${{ github.sha }} # Use the commit SHA as the image tag
         # The working-directory should point to where your Dockerfile is located
         # relative to the root of your repository after checkout.
         working-directory: ./ # Assumes Dockerfile is at the repository root
         run: |
-          echo "ECR Registry: $ECR_REGISTRY"
-          echo "ECR Repository Name (path): $ECR_REPOSITORY_NAME"
-          echo "Image Artifact Name: $IMAGE_ARTIFACT_NAME"
-          echo "Image Tag (SHA): $IMAGE_TAG"
-          ls -la # Useful for debugging paths
-          # docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_NAME/$IMAGE_ARTIFACT_NAME:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY_NAME/$IMAGE_ARTIFACT_NAME:latest .
-          # docker push $ECR_REGISTRY/$ECR_REPOSITORY_NAME/$IMAGE_ARTIFACT_NAME:$IMAGE_TAG
-          # docker push $ECR_REGISTRY/$ECR_REPOSITORY_NAME/$IMAGE_ARTIFACT_NAME:latest
-          echo "Pushed image: $ECR_REGISTRY/$ECR_REPOSITORY_NAME/$IMAGE_ARTIFACT_NAME (tags: $IMAGE_TAG, latest)"
+          IMAGE_NAME="$ECR_REGISTRY/$ECR_REPOSITORY"
+          echo "Building and pushing image: $IMAGE_NAME with tags $IMAGE_TAG and latest"
+          docker build -t "$IMAGE_NAME:$IMAGE_TAG" -t "$IMAGE_NAME:latest" .
+          docker push "$IMAGE_NAME:$IMAGE_TAG"
+          docker push "$IMAGE_NAME:latest"
+          echo "Successfully pushed image: $IMAGE_NAME"

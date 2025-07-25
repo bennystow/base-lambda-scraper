@@ -83,7 +83,7 @@ if __name__ == "__main__": # Standard check for script execution
         # If scrape_h2_tags_from_webscraper_io is successful, it returns a JSON string.
         # An exception would have been raised on failure, so no need to check for None.
         # Print the JSON result to STDOUT for consumption by other scripts/tests.
-        logger.info(json_output)
+        print(json_output)
     except ScrapingError as se:
         logger.error(f"Scraping failed: {se}") # Use logger.error for known operational errors
         sys.exit(1) # Exit with a non-zero status code to indicate failure

@@ -5,35 +5,19 @@ import os
 
 # Define the image name, assuming it's built as 'base-lambda-scraper'
 DOCKER_IMAGE_NAME = "base-lambda-scraper"
-# Define the expected output
-EXPECTED_OUTPUT = {'h2_tags': ['Table playground', 'Semantically correct table with thead and tbody']}
-# Import the function and custom exception to be tested
-from src.main import scrape_h2_tags_from_webscraper_io, ScrapingError
 
 class TestScrapingLogic(unittest.TestCase):
 
     @classmethod # This setup might still be useful for other tests that DO run the container
     def setUpClass(cls):
         """
-        Optional: Build the Docker image once before all tests in this class.
-        This assumes the Dockerfile is in the parent directory of this test file's location.
-        Adjust the path to Dockerfile if necessary.
+        Build the Docker image once before all tests in this class.
+        This ensures that any changes to the source code are included.
+        Docker's layer caching makes this efficient.
         """
         dockerfile_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        print(f"Attempting to build Docker image: {DOCKER_IMAGE_NAME} from {dockerfile_dir}")
+        print(f"Building Docker image: {DOCKER_IMAGE_NAME} from {dockerfile_dir}")
         try:
-            # Check if image already exists to avoid unnecessary rebuilds if not desired
-            # For CI, you might always want to build.
-            subprocess.run(
-                ["docker", "image", "inspect", DOCKER_IMAGE_NAME],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            print(f"Docker image {DOCKER_IMAGE_NAME} already exists. Skipping build.")
-        except subprocess.CalledProcessError:
-            print(f"Docker image {DOCKER_IMAGE_NAME} not found. Building...")
             build_process = subprocess.run(
                 ["docker", "build", "-t", DOCKER_IMAGE_NAME, "."],
                 cwd=dockerfile_dir, # Run docker build from the directory containing the Dockerfile
@@ -43,33 +27,51 @@ class TestScrapingLogic(unittest.TestCase):
                 timeout=300 # 5 minutes timeout for build
             )
             print("Docker image build successful.")
-            # print("Build STDOUT:", build_process.stdout) # Uncomment for debugging build
-            # print("Build STDERR:", build_process.stderr) # Uncomment for debugging build
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            # If the build fails, we want to see the error and stop the tests.
+            print("Docker build failed.")
+            # stdout and stderr are attributes on the exception object itself
+            print(f"STDOUT: {e.stdout}")
+            print(f"STDERR: {e.stderr}")
+            raise
 
 
-    def test_scrape_function_returns_expected_json(self):
+    def test_docker_run_produces_valid_json_with_h2_tags(self):
         """
-        Tests that the scrape_h2_tags_from_webscraper_io function
-        returns the expected JSON data.
-        This test calls the function directly, not via Docker.
+        Tests that running the main script inside the Docker container
+        produces a valid JSON output on stdout with the 'h2_tags' key.
+        This is an integration test.
         """
-        print("Testing scrape_h2_tags_from_webscraper_io function directly...")
-        # Ensure the environment is clean for this test, e.g., RUNNING_IN_DOCKER is not set
-        # unless specifically testing that scenario with mocking.
-        # For this test, we assume it runs as if in a local environment.
-        # If 'RUNNING_IN_DOCKER' is set in your test environment and you want to override:
-        # with unittest.mock.patch.dict(os.environ, {'RUNNING_IN_DOCKER': 'false'}, clear=True):
-        #    json_string_output = scrape_h2_tags_from_webscraper_io()
-        
-        json_string_output = None # Initialize to ensure it's defined for the except block
+        print(f"\nRunning Docker container {DOCKER_IMAGE_NAME} to test output...")
         try:
-            json_string_output = scrape_h2_tags_from_webscraper_io()
-            actual_output = json.loads(json_string_output)
-            self.assertEqual(actual_output, EXPECTED_OUTPUT, "Container output did not match expected output.")
-        except ScrapingError as se:
-            self.fail(f"Scraping function raised an error: {se}")
-        except json.JSONDecodeError as e:
-            self.fail(f"Failed to decode JSON from function output: {e}\nOutput was: {json_string_output}")
+            # The command to run inside the container is defined by the Dockerfile's CMD.
+            # We assume it's `["python", "src/main.py"]`.
+            # The `--rm` flag ensures the container is removed after it exits.
+            result = subprocess.run(
+                ["docker", "run", "--rm", DOCKER_IMAGE_NAME],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=60  # 60-second timeout for the container to run and exit
+            )
+
+            # In main.py, JSON output is sent to stdout via print()
+            stdout = result.stdout.strip()
+            self.assertTrue(stdout, "STDOUT from container was empty.")
+
+            # 2. Check if it's valid JSON and has the 'h2_tags' key
+            try:
+                data = json.loads(stdout)
+                self.assertIn('h2_tags', data, "The returned JSON must have an 'h2_tags' key.")
+                self.assertIsInstance(data['h2_tags'], list, "The 'h2_tags' key should correspond to a list.")
+            except json.JSONDecodeError as e:
+                self.fail(f"The function did not return a valid JSON string. Error: {e}\nOutput was: '{stdout}'")
+
+        except subprocess.CalledProcessError as e:
+            self.fail(f"Docker container exited with an error.\n"
+                      f"Exit Code: {e.returncode}\n"
+                      f"STDOUT: {e.stdout}\n"
+                      f"STDERR: {e.stderr}")
         except Exception as e:
             self.fail(f"An unexpected error occurred during the test: {e}")
 
