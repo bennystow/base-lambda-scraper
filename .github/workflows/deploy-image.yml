@@ -58,7 +58,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           # Dynamically set ECR_REPOSITORY_NAME based on the branch
-          ECR_REPOSITORY: ${{ github.ref == 'refs/heads/main' && 'production/base-image' || 'development/base-image' }}
+          ECR_REPOSITORY: ${{ github.ref == 'refs/heads/main' && 'base-scraper/prod' || 'base-scraper/dev' }}
           IMAGE_TAG: ${{ github.sha }} # Use the commit SHA as the image tag
         # The working-directory should point to where your Dockerfile is located
         # relative to the root of your repository after checkout.
